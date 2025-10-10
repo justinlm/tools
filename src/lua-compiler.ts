@@ -9,10 +9,16 @@ const execAsync = promisify(exec);
 const LUAC_PATH = path.join(__dirname, '..', 'lua', 'luac.exe');
 
 /**
- * 递归查找所有lua文件
+ * 递归查找所有文件，返回包含文件路径和类型的对象数组
  */
-function findLuaFiles(dir: string): string[] {
-    const files: string[] = [];
+interface FileInfo {
+    path: string;
+    isLua: boolean;
+    relativePath: string;
+}
+
+function findAllFiles(dir: string): FileInfo[] {
+    const files: FileInfo[] = [];
     
     function traverse(currentDir: string) {
         const items = fs.readdirSync(currentDir);
@@ -23,8 +29,14 @@ function findLuaFiles(dir: string): string[] {
             
             if (stat.isDirectory()) {
                 traverse(fullPath);
-            } else if (item.endsWith('.lua')) {
-                files.push(fullPath);
+            } else {
+                const relativePath = path.relative(dir, fullPath);
+                const isLua = item.endsWith('.lua');
+                files.push({
+                    path: fullPath,
+                    isLua: isLua,
+                    relativePath: relativePath
+                });
             }
         }
     }
@@ -45,9 +57,7 @@ function ensureDirectoryExists(dir: string) {
 /**
  * 编译单个lua文件
  */
-async function compileLuaFile(sourcePath: string, targetDir: string): Promise<void> {
-    // 计算相对路径以保持目录结构
-    const relativePath = path.relative(path.join(__dirname, '..', 'logic'), sourcePath);
+async function compileLuaFile(sourcePath: string, targetDir: string, relativePath: string): Promise<void> {
     const targetPath = path.join(targetDir, relativePath.replace(/\.lua$/, '.lc'));
     
     // 确保目标目录存在
@@ -67,7 +77,26 @@ async function compileLuaFile(sourcePath: string, targetDir: string): Promise<vo
 }
 
 /**
- * 编译所有lua文件
+ * 复制单个非lua文件
+ */
+function copyNonLuaFile(sourcePath: string, targetDir: string, relativePath: string): void {
+    const targetPath = path.join(targetDir, relativePath);
+    
+    // 确保目标目录存在
+    const targetFileDir = path.dirname(targetPath);
+    ensureDirectoryExists(targetFileDir);
+    
+    try {
+        fs.copyFileSync(sourcePath, targetPath);
+        console.log(`✓ 复制成功: ${relativePath}`);
+    } catch (error) {
+        console.error(`✗ 复制失败: ${relativePath}`, error);
+        throw error;
+    }
+}
+
+/**
+ * 编译所有lua文件并复制非lua文件
  */
 export async function compileLuaFiles(): Promise<void> {
     const sourceDir = path.join(__dirname, '..', 'logic');
@@ -78,15 +107,21 @@ export async function compileLuaFiles(): Promise<void> {
         throw new Error(`Lua编译器不存在: ${LUAC_PATH}`);
     }
     
-    // 查找所有lua文件
-    const luaFiles = findLuaFiles(sourceDir);
+    // 查找所有文件
+    const allFiles = findAllFiles(sourceDir);
     
-    if (luaFiles.length === 0) {
-        console.log('未找到任何lua文件');
+    if (allFiles.length === 0) {
+        console.log('未找到任何文件');
         return;
     }
     
-    console.log(`找到 ${luaFiles.length} 个lua文件`);
+    // 分离lua文件和非lua文件
+    const luaFiles = allFiles.filter(file => file.isLua);
+    const nonLuaFiles = allFiles.filter(file => !file.isLua);
+    
+    console.log(`找到 ${allFiles.length} 个文件`);
+    console.log(`- Lua文件: ${luaFiles.length} 个`);
+    console.log(`- 非Lua文件: ${nonLuaFiles.length} 个`);
     
     // 清空目标目录
     if (fs.existsSync(targetDir)) {
@@ -94,8 +129,21 @@ export async function compileLuaFiles(): Promise<void> {
     }
     ensureDirectoryExists(targetDir);
     
-    // 编译所有文件
-    for (const luaFile of luaFiles) {
-        await compileLuaFile(luaFile, targetDir);
+    // 先复制非lua文件
+    if (nonLuaFiles.length > 0) {
+        console.log('\n开始复制非lua文件...');
+        for (const fileInfo of nonLuaFiles) {
+            copyNonLuaFile(fileInfo.path, targetDir, fileInfo.relativePath);
+        }
     }
+    
+    // 编译lua文件
+    if (luaFiles.length > 0) {
+        console.log('\n开始编译lua文件...');
+        for (const fileInfo of luaFiles) {
+            await compileLuaFile(fileInfo.path, targetDir, fileInfo.relativePath);
+        }
+    }
+    
+    console.log('\n✅ 所有文件处理完成！');
 }

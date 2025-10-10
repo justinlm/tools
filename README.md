@@ -16,6 +16,7 @@ npm run compile-lua
 
 # 或者先编译TypeScript，再运行
 npm run build-and-compile
+
 ```
 
 ### 3. 查看结果

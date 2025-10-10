@@ -2,17 +2,20 @@
   "name": "ts-luac",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/index.js",
+  "main": "dist/bundle.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
+    "build-bundle": "esbuild src/index.ts --bundle --platform=node --outfile=dist/bundle.js",
+    "build-all": "npm run build-bundle",
+    "start": "node dist/bundle.js",
     "dev": "ts-node src/index.ts",
     "compile-lua": "ts-node src/index.ts",
-    "build-and-compile": "npm run build && npm run compile-lua"
+    "build-and-compile": "npm run build-all && npm run start"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
     "@types/node": "^20.0.0",
-    "ts-node": "^10.9.0"
+    "ts-node": "^10.9.0",
+    "esbuild": "^0.19.0"
   }
 }
