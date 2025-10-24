@@ -1,7 +1,7 @@
-import { COSClient } from './cos-client.js';
+import { COSClient } from './cos-client';
 import { statSync } from 'fs';
-import { formatSize } from './utils.js';
-import { UploadProgress } from './types.js';
+import { formatSize } from './utils';
+import { UploadProgress } from './types';
 
 export class FileUploader {
   private cosClient: COSClient;
