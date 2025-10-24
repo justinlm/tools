@@ -10,10 +10,10 @@ const program = new Command();
 
 // COS配置
 const cosConfig: COSConfig = {
-  secretId: 'IKIDMispiXEsBUggT7Z5RaWFn9yQgV8ZmmZE',
-  secretKey: 'd2EC0bz96yTmslRtFPNCpFSSEnBUbUGr',
-  region: 'ap-singapore',
-  bucket: 'h5-res-1323539502'
+  secretId: 'IKIDh9H6bmY19hvoMaU3HDo52ebEWU8RP3MZ',
+  secretKey: 'vWmhJbZFcfOousXsuczqNZRyA1YniJaX',
+  region: 'eu-frankfurt',
+  bucket: 'djghoul-1352581662'
 };
 
 program
@@ -47,14 +47,13 @@ program
         parseInt(options.threads),
         parseInt(options.hashChunk)
       );
-      
+
       const result = await synchronizer.sync(
         options.local,
         options.prefix,
         options.delete,
-        options.md5Cache
       );
-      
+
       console.log('\nSync completed:');
       console.log(`Scanned local files: ${result.scannedLocal}`);
       console.log(`Scanned remote objects: ${result.scannedRemote}`);
@@ -62,7 +61,7 @@ program
       console.log(`Deleted objects: ${result.deleted}`);
       console.log(`Total upload size: ${formatSize(result.totalSize)}`);
       console.log(`Elapsed time: ${result.elapsedTime.toFixed(2)}s`);
-      
+
     } catch (error) {
       console.error('Sync failed:', error);
       process.exit(1);

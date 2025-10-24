@@ -31,16 +31,16 @@ const ENVIRONMENTS: Record<string, EnvironmentConfig> = {
     },
     'test': {
         zoneId: 'zone-3ez5am82ibg3',
-        cdnUrl: 'http://gcdn01.sandboxol.cn',
-        prefix: 'https://gamedj.xccosmostar.com/',
+        cdnUrl: 'https://gamedj.xccosmostar.com/',
+        prefix: 'staticgg/http_update-test',
         name: '测试环境'
     }
 };
 
 // COS配置
 const cosConfig: COSConfig = {
-    secretId: 'IKIDMispiXEsBUggT7Z5RaWFn9yQgV8ZmmZE',
-    secretKey: 'd2EC0bz96yTmslRtFPNCpFSSEnBUbUGr',
+    secretId: 'IKIDh9H6bmY19hvoMaU3HDo52ebEWU8RP3MZ',
+    secretKey: 'vWmhJbZFcfOousXsuczqNZRyA1YniJaX',
     region: 'eu-frankfurt',
     bucket: 'djghoul-1352581662'
 };
@@ -103,8 +103,15 @@ class InteractiveCLI {
     // 选择环境
     private async selectEnvironment(): Promise<EnvironmentConfig> {
         console.log('\n🌍 选择部署环境:');
-        return ENVIRONMENTS[0];
-        
+        while (true) {
+            const num = 1;
+            const envKeys = Object.keys(ENVIRONMENTS);
+
+            if (!isNaN(num) && num >= 1 && num <= envKeys.length) {
+                return ENVIRONMENTS[envKeys[num - 1]];
+            }
+        }
+
         // Object.entries(ENVIRONMENTS).forEach(([key, config], index) => {
         //     console.log(`  ${index + 1}. ${config.name} (${key})`);
         // });
@@ -203,7 +210,7 @@ class InteractiveCLI {
         const synchronizer = new COSSynchronizer(cosConfig, 8, 4);
 
         try {
-            const result = await synchronizer.sync(localPath, remotePrefix, false, md5CachePath);
+            const result = await synchronizer.sync(localPath, remotePrefix, false);
 
             console.log('\n📈 同步结果:');
             console.log(`  扫描本地文件: ${result.scannedLocal}`);
@@ -212,7 +219,6 @@ class InteractiveCLI {
             console.log(`  删除对象数: ${result.deleted}`);
             console.log(`  总上传大小: ${this.formatSize(result.totalSize)}`);
             console.log(`  耗时: ${result.elapsedTime.toFixed(2)}秒`);
-
             return result;
         } catch (error) {
             console.error('❌ 同步失败:', error);
@@ -269,19 +275,12 @@ class InteractiveCLI {
             // 2. 选择文件夹
             this.selectedFolder = await this.selectFolder();
 
-            // 3. 显示本地配置
-            //   this.showLocalConfig();
-
-            // 4. 列出远程版本
-            //   await this.listRemoteVersions(this.selectedEnvironment.prefix);
-
-            // //   // 5. 输入版本名称
-            //   this.versionName = await this.inputVersionName();
-
             // 6. 构建远程路径
-            const remoteRootDir = this.versionName
-                ? `${this.versionName}/${this.selectedFolder}`
-                : this.selectedFolder;
+            // const remoteRootDir = this.versionName
+            //     ? `${this.versionName}/${this.selectedFolder}`
+            //     : this.selectedFolder;
+
+            console.log("this.selectedEnvironment.prefix:", this.selectedEnvironment.prefix);
             const remotePrefix = `${this.selectedEnvironment.prefix}`;
             const localPath = join(this.currentDir, this.selectedFolder);
             const md5CachePath = join(this.currentDir, `${this.selectedFolder}.md5cache.json`);
@@ -306,14 +305,6 @@ class InteractiveCLI {
             //   // 9. 刷新CDN缓存
             //   const targetUrl = `${this.selectedEnvironment.cdnUrl}/${remotePrefix}/`;
             //   await this.flushCDNCache(targetUrl, this.selectedEnvironment.zoneId);
-
-            //   // 10. 确认是否清理冗余文件
-            //   const needCleanup = await this.confirmCleanup();
-            //   if (needCleanup) {
-            //     console.log('\n⏰ 清理操作将在30秒后执行...');
-            //     await this.delay(30000);
-            //     await this.cleanupRedundantFiles(remotePrefix);
-            //   }
 
             //   console.log('\n🎉 操作完成！');
 

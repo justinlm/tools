@@ -59,8 +59,7 @@ export class COSClient {
           console.log(JSON.stringify(progressData));
         }
       }, (err, data) => {
-
-        console.log("上传结果:", err || data);
+        // console.log("上传结果:", err || data);
         if (err) {
           reject(err);
         }
@@ -102,7 +101,7 @@ export class COSClient {
         Region: this.config.region,
         Key: key
       }, (err, data) => {
-        console.log("获取对象内容结果:", err || data.Body);
+        // console.log("获取对象内容结果:", err || data.Body);
         if (err) reject(err);
         else resolve(data.Body as Buffer);
       });

@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { statSync, readdirSync, lstatSync } from 'fs';
+import { statSync, readdirSync, lstatSync, promises as fsPromises } from 'fs';
 import { join, relative } from 'path';
 
 export function normalizePrefix(prefix: string): string {
@@ -9,16 +9,16 @@ export function normalizePrefix(prefix: string): string {
 
 export function formatSize(bytes: number): string {
   if (bytes === 0) return '0 B';
-  
+
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let idx = 0;
   let num = bytes;
-  
+
   while (num >= 1024 && idx < units.length - 1) {
     num /= 1024;
     idx++;
   }
-  
+
   return `${num.toFixed(2)} ${units[idx]}`;
 }
 
@@ -36,7 +36,7 @@ export async function computeFileMD5(filePath: string, chunkSize: number = 1024 
     const hash = createHash('md5');
     const fs = require('fs');
     const stream = fs.createReadStream(filePath, { highWaterMark: chunkSize });
-    
+
     stream.on('data', (chunk: Buffer) => hash.update(chunk));
     stream.on('end', () => resolve(hash.digest('hex')));
     stream.on('error', reject);
@@ -47,14 +47,14 @@ export function scanLocalDirectory(localDir: string, prefix: string): Map<string
   const localMap = new Map<string, { path: string; size: number }>();
   const prefixNorm = normalizePrefix(prefix);
   const base = require('path').resolve(localDir);
-  
+
   function scanDirectory(dir: string) {
     const items = readdirSync(dir);
-    
+
     for (const item of items) {
       const fullPath = join(dir, item);
       const stat = lstatSync(fullPath);
-      
+
       if (stat.isDirectory()) {
         scanDirectory(fullPath);
       } else if (stat.isFile()) {
@@ -67,7 +67,16 @@ export function scanLocalDirectory(localDir: string, prefix: string): Map<string
       }
     }
   }
-  
+
   scanDirectory(base);
   return localMap;
+}
+
+export async function readLocalFile(filePath: string): Promise<string> {
+  try {
+    return await fsPromises.readFile(filePath, 'utf-8');
+  } catch (error) {
+    console.error('[Local] Failed to read file:', error);
+    return '';
+  }
 }
