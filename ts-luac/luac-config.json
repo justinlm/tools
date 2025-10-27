@@ -1,0 +1,5 @@
+{
+  "luacPath": "./lua/luac.exe",
+  "sourceDir": "./logic",
+  "targetDir": "./logic-lc"
+}

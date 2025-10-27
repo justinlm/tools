@@ -5,8 +5,34 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-// Lua编译器路径
-const LUAC_PATH = path.join(__dirname, '..', 'lua', 'luac.exe');
+// 读取配置文件
+const CONFIG_PATH = path.join(__dirname, '..', 'luac-config.json');
+
+interface Config {
+    luacPath: string;
+    sourceDir: string;
+    targetDir: string;
+}
+
+function loadConfig(): Config {
+    if (!fs.existsSync(CONFIG_PATH)) {
+        throw new Error(`配置文件不存在: ${CONFIG_PATH}`);
+    }
+    
+    const configContent = fs.readFileSync(CONFIG_PATH, 'utf-8');
+    const config = JSON.parse(configContent) as Config;
+    
+    // 将相对路径转换为绝对路径
+    const projectRoot = path.join(__dirname, '..');
+    return {
+        luacPath: path.resolve(projectRoot, config.luacPath),
+        sourceDir: path.resolve(projectRoot, config.sourceDir),
+        targetDir: path.resolve(projectRoot, config.targetDir)
+    };
+}
+
+const config = loadConfig();
+const LUAC_PATH = config.luacPath;
 
 /**
  * 递归查找所有文件，返回包含文件路径和类型的对象数组
@@ -99,8 +125,8 @@ function copyNonLuaFile(sourcePath: string, targetDir: string, relativePath: str
  * 编译所有lua文件并复制非lua文件
  */
 export async function compileLuaFiles(): Promise<void> {
-    const sourceDir = path.join(__dirname, '..', 'logic');
-    const targetDir = path.join(__dirname, '..', 'logic-lc');
+    const sourceDir = config.sourceDir;
+    const targetDir = config.targetDir;
     
     // 检查luac.exe是否存在
     if (!fs.existsSync(LUAC_PATH)) {
