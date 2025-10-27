@@ -6,7 +6,7 @@ set curdir=%curdir:~0,-1%
 
 echo.
 echo ========================================
-echo   腾讯云 COS 上传工具 (打包版本)
+echo   腾讯云 TEO 缓存刷新工具 (打包版本)
 echo ========================================
 echo.
 
@@ -18,10 +18,10 @@ if not exist "%curdir%\dist\bundle.js" (
     exit /b 1
 )
 
-:: 执行上传命令
-echo 正在执行上传操作...
+:: 执行刷新命令
+echo 正在执行缓存刷新操作...
 echo.
-node "%curdir%\dist\bundle.js" upload
+node "%curdir%\dist\bundle.js" purge
 
 echo.
 echo 操作完成！
