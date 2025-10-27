@@ -46,3 +46,19 @@ export interface DeltaResult {
   toUpload: Array<{ key: string; path: string }>;
   hashedBytes: number;
 }
+
+// 配置类型
+export interface EnvironmentConfig {
+  zoneId: string;
+  cdnUrl: string;
+  prefix: string;
+  name: string;
+  localFolder: string;
+}
+
+// 应用配置接口
+export interface AppConfig {
+  cosConfig: COSConfig;
+  environments: Record<string, EnvironmentConfig>;
+  currentEnv: string;
+}

@@ -4,46 +4,9 @@ import { createInterface } from 'readline';
 import { existsSync, readdirSync, statSync, readFileSync } from 'fs';
 import { join, resolve, relative } from 'path';
 import { COSSynchronizer } from './cos-synchronizer';
-import { COSConfig } from './types';
+import { AppConfig, COSConfig, EnvironmentConfig } from './types';
 import { execSync } from 'child_process';
-
-// 配置类型
-interface EnvironmentConfig {
-    zoneId: string;
-    cdnUrl: string;
-    prefix: string;
-    name: string;
-}
-
-// 环境配置
-const ENVIRONMENTS: Record<string, EnvironmentConfig> = {
-    'production': {
-        zoneId: 'zone-3ez5am82ibg3',
-        cdnUrl: 'https://gamedj.xccosmostar.com/',
-        prefix: 'staticgg/http_update',
-        name: '正式环境'
-    },
-    'prerelease': {
-        zoneId: 'zone-3ez5am82ibg3',
-        cdnUrl: 'https://gamedj.xccosmostar.com/',
-        prefix: 'staticgg/http_update-prerelease',
-        name: '预发布环境'
-    },
-    'test': {
-        zoneId: 'zone-3ez5am82ibg3',
-        cdnUrl: 'https://gamedj.xccosmostar.com/',
-        prefix: 'staticgg/http_update-test',
-        name: '测试环境'
-    }
-};
-
-// COS配置
-const cosConfig: COSConfig = {
-    secretId: 'IKIDh9H6bmY19hvoMaU3HDo52ebEWU8RP3MZ',
-    secretKey: 'vWmhJbZFcfOousXsuczqNZRyA1YniJaX',
-    region: 'eu-frankfurt',
-    bucket: 'djghoul-1352581662'
-};
+import { loadAppConfig } from './utils';
 
 class InteractiveCLI {
     private rl = createInterface({
@@ -55,9 +18,21 @@ class InteractiveCLI {
     private selectedEnvironment: EnvironmentConfig | null = null;
     private selectedFolder: string = '';
     private versionName: string = '';
+    private appConfig: AppConfig;
 
     constructor() {
         this.currentDir = process.cwd();
+        this.appConfig = loadAppConfig();
+    }
+
+    // 获取环境配置
+    private getEnvironments(): Record<string, EnvironmentConfig> {
+        return this.appConfig.environments;
+    }
+
+    // 获取COS配置
+    private getCosConfig(): COSConfig {
+        return this.appConfig.cosConfig;
     }
 
     // 提问工具函数
@@ -68,116 +43,18 @@ class InteractiveCLI {
     }
 
     // 显示文件夹列表并选择
-    private async selectFolder(): Promise<string> {
-        console.log('\n📁 选择本地文件夹:');
+    private async setUploadFolder(): Promise<string> {
+        console.log('\n📁 文件夹:');
         console.log('  🔍 this.currentDir:' + this.currentDir);
-        // const items = readdirSync(this.currentDir, { withFileTypes: true })
-        //     .filter(dirent => dirent.isDirectory())
-        //     .map(dirent => dirent.name);
 
-        // if (items.length === 0) {
-        //     console.log('❌ 当前目录下没有文件夹');
-        //     process.exit(1);
-        // }
-
-        // // 显示文件夹列表
-        // items.forEach((item, index) => {
-        //     console.log(`  ${index + 1}. ${item}`);
-        // });
-
-        // while (true) {
-        //     const answer = await this.question('\n请选择文件夹 (输入数字): ');
-        //     const num = parseInt(answer);
-
-        //     if (!isNaN(num) && num >= 1 && num <= items.length) {
-        //         let item = items[num - 1]
-        //         console.log(`  🔍 选择文件夹: ${item}`);
-        //         return item;
-        //     }
-
-        //     console.log('❌ 无效的选择，请重新输入');
-        // }
-        return 'ios_update';
+        return this.selectedEnvironment?.localFolder || '';
     }
 
     // 选择环境
-    private async selectEnvironment(): Promise<EnvironmentConfig> {
-        console.log('\n🌍 选择部署环境:');
-        while (true) {
-            const num = 1;
-            const envKeys = Object.keys(ENVIRONMENTS);
-
-            if (!isNaN(num) && num >= 1 && num <= envKeys.length) {
-                return ENVIRONMENTS[envKeys[num - 1]];
-            }
-        }
-
-        // Object.entries(ENVIRONMENTS).forEach(([key, config], index) => {
-        //     console.log(`  ${index + 1}. ${config.name} (${key})`);
-        // });
-
-        // while (true) {
-        //     const answer = await this.question('\n请选择环境 (输入数字): ');
-        //     const num = parseInt(answer);
-        //     const envKeys = Object.keys(ENVIRONMENTS);
-
-        //     if (!isNaN(num) && num >= 1 && num <= envKeys.length) {
-        //         return ENVIRONMENTS[envKeys[num - 1]];
-        //     }
-
-        //     console.log('❌ 无效的选择，请重新输入');
-        // }
-    }
-
-    // 输入版本名称
-    private async inputVersionName(): Promise<string> {
-        console.log('\n🏷️  设置版本名称:');
-        console.log('  提示: 可以为空（直接使用文件夹名），或输入自定义版本名称');
-
-        const answer = await this.question('请输入版本名称（直接回车使用文件夹名）: ');
-        return answer.trim();
-    }
-
-    // 显示本地配置信息
-    private showLocalConfig() {
-        console.log('\n📋 本地配置信息:');
-
-        try {
-            // 检查是否存在配置文件
-            const assetsDir = join(this.currentDir, '..', 'Assets', 'Res');
-
-            // CDN配置
-            const addressFile = join(assetsDir, 'Boot', 'Address.bson');
-            if (existsSync(addressFile)) {
-                console.log('  📡 CDN配置:');
-                const content = readFileSync(addressFile, 'utf-8');
-                const cdnLines = content.split('\n').filter(line => line.includes('cdnUrl'));
-                cdnLines.forEach(line => console.log(`    ${line.trim()}`));
-            }
-
-            // 区服配置
-            const regionFile = join(assetsDir, 'Config', 'Region.bson');
-            if (existsSync(regionFile)) {
-                console.log('  🎮 区服配置:');
-                const content = readFileSync(regionFile, 'utf-8');
-                const idNameLines = content.split('\n').filter(line => line.includes('id') && line.includes('name'));
-                const recommendLines = content.split('\n').filter(line => line.includes('recommendRegionId'));
-
-                idNameLines.slice(0, 3).forEach(line => console.log(`    ${line.trim()}`));
-                recommendLines.slice(0, 2).forEach(line => console.log(`    ${line.trim()}`));
-            }
-        } catch (error) {
-            console.log('  ⚠️  无法读取本地配置文件');
-        }
-    }
-
-    // 列出远程已有版本
-    private async listRemoteVersions(prefix: string) {
-        console.log('\n📊 远程已有版本:');
-        // 这里可以实现列出远程版本的功能
-        console.log('  🔄 正在获取远程版本列表...');
-        // 暂时显示占位信息
-        console.log('  📝 版本列表功能待实现');
+    private async setEnvironment(): Promise<EnvironmentConfig> {
+        console.log('\n🌍 选择部署环境:' + this.appConfig.currentEnv);
+        const environments = this.getEnvironments();
+        return environments[this.appConfig.currentEnv];
     }
 
     // 确认操作
@@ -193,7 +70,7 @@ class InteractiveCLI {
         console.log(`  版本: ${operationInfo.version || '使用文件夹名'}`);
         console.log(`  远端路径: ${operationInfo.remotePath}`);
 
-        const answer = await this.question('\n确认开始上传？(y/n): ');
+        const answer = 'y'; //await this.question('\n确认开始上传？(y/n): ');
         return answer.toLowerCase() === 'y';
     }
 
@@ -206,7 +83,7 @@ class InteractiveCLI {
     // 执行同步操作
     private async performSync(remotePrefix: string, localPath: string, md5CachePath: string) {
         console.log('\n🚀 开始同步操作...');
-
+        const cosConfig = this.getCosConfig();
         const synchronizer = new COSSynchronizer(cosConfig, 8, 4);
 
         try {
@@ -239,7 +116,7 @@ class InteractiveCLI {
     // 清理冗余文件
     private async cleanupRedundantFiles(remotePrefix: string) {
         console.log('\n🧹 清理冗余文件...');
-
+        const cosConfig = this.getCosConfig();
         const synchronizer = new COSSynchronizer(cosConfig, 8, 4);
 
         try {
@@ -270,10 +147,10 @@ class InteractiveCLI {
 
         try {
             // 1. 选择环境
-            this.selectedEnvironment = await this.selectEnvironment();
+            this.selectedEnvironment = await this.setEnvironment();
 
             // 2. 选择文件夹
-            this.selectedFolder = await this.selectFolder();
+            this.selectedFolder = await this.setUploadFolder();
 
             // 6. 构建远程路径
             // const remoteRootDir = this.versionName
@@ -323,6 +200,7 @@ class InteractiveCLI {
 
 // 启动程序
 if (import.meta.url === `file://${process.argv[1]}`) {
+    console.log(`🚀 启动 ${process.argv[1]}`);
     const cli = new InteractiveCLI();
     cli.run().catch(console.error);
 }

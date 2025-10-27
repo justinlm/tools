@@ -4,6 +4,7 @@ import { FileUploader } from './file-uploader';
 import { MD5Cache } from './md5-cache';
 import { scanLocalDirectory, normalizePrefix, computeFileMD5, readLocalFile } from './utils';
 import { SyncResult, FileInfo, COSConfig } from './types';
+import { publicDecrypt } from 'crypto';
 
 
 export class COSSynchronizer {
@@ -35,7 +36,15 @@ export class COSSynchronizer {
       const localVersion = await this.readLocalVersion(localDir);
       if (localVersion == remoteVersion) {
         console.log('[Sync] Local version is up-to-date, skipping sync');
-        return {} as SyncResult;
+        const result: SyncResult = {
+          scannedLocal: 1,
+          scannedRemote: 1,
+          uploaded: 0,
+          deleted: 0,
+          totalSize: 0,
+          elapsedTime: (Date.now() - startTime) / 1000,
+        };
+        return result;
       }
 
       // 3. 同步本地文件
@@ -49,18 +58,6 @@ export class COSSynchronizer {
         remoteMapSize = result.remoteMapSize;
       }
 
-      // // 3. 上传meta文件（如果有变化）
-      // if (metaHasChanges) {
-      //   console.log('[Meta] Meta file has changes, uploading...');
-      //   await this.uploadRemoteMeta(prefix, newMeta);
-      //   console.log(`[Meta] Updated meta file with ${newMeta.size} entries`);
-      // } else {
-      //   console.log('[Meta] No changes to meta file, skipping upload');
-      // }
-
-      // // 4. 删除多余文件
-      // let deletedCount = 0;
-
       // 5. 返回结果
       const elapsedTime = (Date.now() - startTime) / 1000;
       const result: SyncResult = {
@@ -71,10 +68,8 @@ export class COSSynchronizer {
         totalSize: uploadedTotalBytes,
         elapsedTime
       };
-
-      // console.log(`[Sync] Completed in ${elapsedTime.toFixed(2)}s`);
-      // return result;
-      return {} as SyncResult;
+      console.log(`[Sync] Completed in ${elapsedTime.toFixed(2)}s`);
+      return result;
     } catch (error) {
       console.error('[Sync] Sync failed:', error);
       throw error;
@@ -86,6 +81,12 @@ export class COSSynchronizer {
     console.log(`[Remote] Downloading version file: ${versionKey}`);
 
     try {
+      const exists = await this.cosClient.doesObjectExist(versionKey);
+      if (!exists) {
+        console.warn('[Remote] version file does not exist');
+        return -1;
+      }
+
       const buffer = await this.cosClient.getObject(versionKey);
       const content = buffer.toString('utf-8');
 
@@ -113,6 +114,12 @@ export class COSSynchronizer {
     console.log(`[Remote] Downloading file: ${versionFileListKey}`);
 
     try {
+      const exists = await this.cosClient.doesObjectExist(versionFileListKey);
+      if (!exists) {
+        console.warn('[Remote] version_file_list file does not exist');
+        return new Map();
+      }
+
       const buffer = await this.cosClient.getObject(versionFileListKey);
       const content = buffer.toString('utf-8');
 
@@ -228,7 +235,6 @@ export class COSSynchronizer {
 
       // 文件不存在于远程，需要上传
       if (!remoteInfo) {
-
         toUpload.push({ key: `${prefixNoSlash}/${key}`, path: `${localDir}/${localInfo.path}` });
         continue;
       }
@@ -248,7 +254,7 @@ export class COSSynchronizer {
       console.log(`[Upload] Successfully uploaded ${uploadResult.uploaded} files`);
     }
 
-    return { localfiles: localMap.size, remoteMapSize: remoteMap.size, uploadedTotalBytes };
+    return { localfiles: localMap.size + 2, remoteMapSize: remoteMap.size, uploadedTotalBytes };
   }
 
   private async deleteExtraObjects(meta: Map<string, FileInfo>, prefix: string): Promise<number> {
@@ -260,3 +266,4 @@ export class COSSynchronizer {
     return 0;
   }
 }
+

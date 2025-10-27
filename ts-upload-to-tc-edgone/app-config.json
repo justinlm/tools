@@ -1,0 +1,32 @@
+{
+  "cosConfig": {
+    "secretId": "IKIDh9H6bmY19hvoMaU3HDo52ebEWU8RP3MZ",
+    "secretKey": "vWmhJbZFcfOousXsuczqNZRyA1YniJaX",
+    "region": "eu-frankfurt",
+    "bucket": "djghoul-1352581662"
+  },
+  "currentEnv": "production",
+  "environments": {
+    "production": {
+      "zoneId": "zone-3ez5am82ibg3",
+      "cdnUrl": "https://gamedj.xccosmostar.com/",
+      "prefix": "staticgg/http_update",
+      "name": "正式环境",
+      "localFolder": "ios_update"
+    },
+    "prerelease": {
+      "zoneId": "zone-3ez5am82ibg3",
+      "cdnUrl": "https://gamedj.xccosmostar.com/",
+      "prefix": "staticgg/http_update-prerelease",
+      "name": "预发布环境",
+      "localFolder": "ios_update"
+    },
+    "test": {
+      "zoneId": "zone-3ez5am82ibg3",
+      "cdnUrl": "https://gamedj.xccosmostar.com/",
+      "prefix": "staticgg/http_update-test",
+      "name": "测试环境",
+      "localFolder": "ios_update"
+    }
+  }
+}

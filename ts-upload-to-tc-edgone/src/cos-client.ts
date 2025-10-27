@@ -19,7 +19,7 @@ export class COSClient {
    * @param marker 
    * @returns 
    */
-  async listObjects(prefix: string = "", maxKeys: number = 1000, marker?: string): Promise<any> {
+  async listObjects(prefix: string = "", maxKeys: number = 1000, marker?: string): Promise<COS.GetBucketResult> {
     return new Promise((resolve, reject) => {
       const params: any = {
         Bucket: this.config.bucket,
@@ -90,6 +90,37 @@ export class COSClient {
   }
 
   /**
+   * 删除目录下的所有文件
+   * @param prefix 目录前缀, 例如 'a/',指定拉取前缀（目录）a
+   * @param maxKeys 每次查询的最大数量, 默认1000
+   * @param marker 分页标记
+   */
+  async deleteFiles(prefix: string, maxKeys: number = 1000, marker?: string) {
+
+    const listResult = await this.listObjects(prefix, maxKeys, marker);
+    const nextMarker = listResult.NextMarker;
+    const objects = listResult.Contents.map(function (item) {
+      return { Key: item.Key }
+    });
+
+    this.client.deleteMultipleObject({
+      Bucket: this.config.bucket,
+      Region: this.config.region,
+      Objects: objects,
+    }, (delError, deleteResult) => {
+      if (delError) {
+        console.log('delete error', delError);
+        console.log('delete stop');
+      } else {
+        console.log('delete result', deleteResult);
+        if (listResult.IsTruncated === 'true')
+          this.deleteFiles(prefix, maxKeys, nextMarker);
+        else console.log('delete complete');
+      }
+    });
+  }
+
+  /**
    * 获取对象内容
    * @param key 存储在桶里的对象键（例如1.jpg，a/b/test.txt），必须字段
    * @returns 
@@ -106,5 +137,30 @@ export class COSClient {
         else resolve(data.Body as Buffer);
       });
     });
+  }
+
+  /**
+   * 检查对象是否存在
+   * @param key 存储在桶里的对象键（例如1.jpg，a/b/test.txt），必须字段
+   * @returns 
+   */
+  async doesObjectExist(key: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      this.client.headObject({
+        Bucket: this.config.bucket,
+        Region: this.config.region,
+        Key: key,  // 存储在桶里的对象键（例如1.jpg，a/b/test.txt），必须字段
+      }, (err, data) => {
+        if (data) {
+          resolve(true);
+        } else if (err?.statusCode == 404) {
+          console.log('对象不存在');
+          resolve(false);
+        } else if (err?.statusCode == 403) {
+          console.log('没有该对象读权限');
+          reject(false);
+        }
+      });
+    })
   }
 }

@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
-import { statSync, readdirSync, lstatSync, promises as fsPromises } from 'fs';
+import { statSync, readdirSync, lstatSync, promises as fsPromises, existsSync, readFileSync } from 'fs';
 import { join, relative } from 'path';
+import { AppConfig } from './types';
 
 export function normalizePrefix(prefix: string): string {
   if (!prefix) return '';
@@ -78,5 +79,32 @@ export async function readLocalFile(filePath: string): Promise<string> {
   } catch (error) {
     console.error('[Local] Failed to read file:', error);
     return '';
+  }
+}
+
+
+// 加载配置文件
+export function loadAppConfig(): AppConfig {
+  const configPath = join(process.cwd(), 'app-config.json');
+
+  if (!existsSync(configPath)) {
+    console.error('❌ 配置文件不存在:', configPath);
+    console.log('💡 请创建 app-config.json 文件并配置 COS 和环境信息');
+    process.exit(1);
+  }
+
+  try {
+    const configContent = readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(configContent) as AppConfig;
+
+    // 验证配置完整性
+    if (!config.cosConfig || !config.environments) {
+      throw new Error('配置文件格式错误，缺少必要的配置项');
+    }
+
+    return config;
+  } catch (error) {
+    console.error('❌ 配置文件读取失败:', error);
+    process.exit(1);
   }
 }
