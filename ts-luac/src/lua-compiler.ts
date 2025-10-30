@@ -6,7 +6,7 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 // 读取配置文件
-const CONFIG_PATH = path.join(__dirname, '..', 'luac-config.json');
+const CONFIG_PATH = path.join(__dirname, 'luac-config.json');
 
 interface Config {
     luacPath: string;
@@ -23,11 +23,11 @@ function loadConfig(): Config {
     const config = JSON.parse(configContent) as Config;
     
     // 将相对路径转换为绝对路径
-    const projectRoot = path.join(__dirname, '..');
+    // const projectRoot = path.join(__dirname, '..');
     return {
-        luacPath: path.resolve(projectRoot, config.luacPath),
-        sourceDir: path.resolve(projectRoot, config.sourceDir),
-        targetDir: path.resolve(projectRoot, config.targetDir)
+        luacPath: path.resolve(__dirname, config.luacPath),
+        sourceDir: path.resolve(__dirname, config.sourceDir),
+        targetDir: path.resolve(__dirname, config.targetDir)
     };
 }
 

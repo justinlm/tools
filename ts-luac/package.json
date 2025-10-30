@@ -5,7 +5,7 @@
   "main": "dist/bundle.js",
   "scripts": {
     "build": "tsc",
-    "build-bundle": "esbuild src/index.ts --bundle --platform=node --outfile=dist/luac-compiler.js",
+    "build-bundle": "esbuild src/index.ts --bundle --platform=node --outfile=dist/lua-compiler.js",
     "build-all": "npm run build-bundle",
     "start": "node dist/bundle.js",
     "dev": "ts-node src/index.ts",

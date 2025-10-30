@@ -37,3 +37,6 @@ npm run build-and-compile
 - 保持原有的目录结构
 - 错误处理和日志输出
 - 支持批量编译
+
+# lua opcode修改参考：
+[lua-prevent-of-decompilation](https://github.com/pnclt/lua-prevent-of-decompilation)
