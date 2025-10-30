@@ -85,7 +85,7 @@ export async function readLocalFile(filePath: string): Promise<string> {
 
 // 加载配置文件
 export function loadAppConfig(): AppConfig {
-  const configPath = join(process.cwd(), 'app-config.json');
+  const configPath = join(__dirname, 'app-config.json');
 
   if (!existsSync(configPath)) {
     console.error('❌ 配置文件不存在:', configPath);

@@ -50,20 +50,22 @@ export class COSSynchronizer {
       // 3. 同步本地文件
       let uploadedTotalBytes = 0;
       let localfiles = 0;
-      let remoteMapSize = 0;
+      let remotefiles = 0;
+      let uploadedFiles = 0;
       if (localDir) {
         const result = await this.syncLocalToRemote(localDir, prefix);
         uploadedTotalBytes = result.uploadedTotalBytes;
         localfiles = result.localfiles;
-        remoteMapSize = result.remoteMapSize;
+        remotefiles = result.remotefiles;
+        uploadedFiles = result.uploadedFiles;
       }
 
       // 5. 返回结果
       const elapsedTime = (Date.now() - startTime) / 1000;
       const result: SyncResult = {
         scannedLocal: localDir ? localfiles : 0,
-        scannedRemote: remoteMapSize,
-        uploaded: localDir ? (localfiles - remoteMapSize) : 0,
+        scannedRemote: remotefiles,
+        uploaded: localDir ? (uploadedFiles) : 0,
         deleted: 0,
         totalSize: uploadedTotalBytes,
         elapsedTime
@@ -213,7 +215,7 @@ export class COSSynchronizer {
   private async syncLocalToRemote(
     localDir: string,
     prefix: string,
-  ): Promise<{ localfiles: number, remoteMapSize: number, uploadedTotalBytes: number }> {
+  ): Promise<{ localfiles: number, remotefiles: number, uploadedFiles: number, uploadedTotalBytes: number }> {
     console.log('[Local] Syncing local files to remote...');
 
     // 获取本地文件列表
@@ -247,14 +249,16 @@ export class COSSynchronizer {
 
     // 上传文件
     let uploadedTotalBytes = 0;
+    let uploadedFiles = 0
     if (toUpload.length > 0) {
       console.log(`[Upload] Uploading ${toUpload.length} files...`);
       const uploadResult = await this.fileUploader.uploadFiles(toUpload);
       uploadedTotalBytes = uploadResult.totalSize;
-      console.log(`[Upload] Successfully uploaded ${uploadResult.uploaded} files`);
+      uploadedFiles = uploadResult.uploaded;
+      console.log(`[Upload] Successfully uploaded ${uploadedFiles} files`);
     }
 
-    return { localfiles: localMap.size + 2, remoteMapSize: remoteMap.size, uploadedTotalBytes };
+    return { localfiles: localMap.size + 2, remotefiles: remoteMap.size, uploadedFiles: uploadedFiles, uploadedTotalBytes };
   }
 
   private async deleteExtraObjects(meta: Map<string, FileInfo>, prefix: string): Promise<number> {
