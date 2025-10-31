@@ -84,7 +84,7 @@ function ensureDirectoryExists(dir: string) {
  * 编译单个lua文件
  */
 async function compileLuaFile(sourcePath: string, targetDir: string, relativePath: string): Promise<void> {
-    const targetPath = path.join(targetDir, relativePath.replace(/\.lua$/, '.lc'));
+    const targetPath = path.join(targetDir, relativePath.replace(/\.lua$/, '.lua'));
     
     // 确保目标目录存在
     const targetFileDir = path.dirname(targetPath);
