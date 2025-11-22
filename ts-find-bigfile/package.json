@@ -1,0 +1,19 @@
+{
+  "name": "ts-find-bigfile",
+  "version": "1.0.0",
+  "description": "TypeScript program to find files larger than 95MB in assets directory",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "build-bundle": "esbuild src/index.ts --bundle --platform=node --outfile=dist/find-bigfiles.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "esbuild": "^0.19.0"
+  },
+  "dependencies": {}
+}

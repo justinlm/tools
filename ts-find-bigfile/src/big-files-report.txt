@@ -1,0 +1,6 @@
+找到 1 个大于95MB的文件:
+
+文件名: ch_h011@mainstand.FBX
+路径: C:\a-test\tools\ts-find-bigfile\assets\ch_h011\fbx\ch_h011@mainstand.FBX
+大小: 264.5 MB (264.5 MB)
+---
