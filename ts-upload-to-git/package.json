@@ -1,0 +1,25 @@
+{
+  "name": "github-batch-uploader",
+  "version": "1.0.0",
+  "description": "批量上传文件到GitHub的工具",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "setup": "npm install && cp .env.example .env",
+    "test": "echo \"运行前请先配置.env文件\" && exit 0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "fs-extra": "^11.1.1",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "@types/fs-extra": "^11.0.1",
+    "typescript": "^5.1.6",
+    "ts-node": "^10.9.1"
+  }
+}
