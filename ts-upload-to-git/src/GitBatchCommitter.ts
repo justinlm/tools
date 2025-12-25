@@ -88,9 +88,18 @@ export class GitBatchCommitter {
     // 处理目录模式（以/结尾）
     if (pattern.endsWith('/')) {
       const dirPattern = pattern.slice(0, -1);
-      return filePath.startsWith(dirPattern) || 
-             filePath.includes('/' + dirPattern + '/') ||
-             filePath.endsWith('/' + dirPattern);
+      // 处理以斜杠开头的模式（如 /assetbundles/）
+      if (dirPattern.startsWith('/')) {
+        const cleanPattern = dirPattern.slice(1); // 移除开头的斜杠
+        return filePath === cleanPattern || 
+               filePath.startsWith(cleanPattern + '/') ||
+               filePath.includes('/' + cleanPattern + '/');
+      } else {
+        // 处理不以斜杠开头的模式
+        return filePath.startsWith(dirPattern) || 
+               filePath.includes('/' + dirPattern + '/') ||
+               filePath.endsWith('/' + dirPattern);
+      }
     }
     
     // 处理通配符模式
@@ -189,6 +198,7 @@ export class GitBatchCommitter {
    * 检查文件是否已经被Git跟踪（已提交或已暂存）
    */
   private async isFileTrackedByGit(filePath: string): Promise<boolean> {
+    return false;
     try {
       // 获取相对于Git仓库根目录的相对路径
       const relativePath = path.relative(this.gitDir, filePath).replace(/\\/g, '/');
@@ -225,6 +235,8 @@ export class GitBatchCommitter {
 
     // 先解析.gitignore文件
     await this.parseGitignore();
+
+    console.log(chalk.cyan(`Ignore patterns: ${this.ignorePatterns.join(', ')}`));
 
     // 先统计总文件数（用于进度显示）
     console.log(chalk.cyan('Counting total files and directories...'));
@@ -454,7 +466,7 @@ export class GitBatchCommitter {
     }
 
     console.log(chalk.cyan(`Found ${allFiles.length} files after .gitignore filtering`));
-
+  
     // 4. 分批提交
     const batches: string[][] = [];
     for (let i = 0; i < allFiles.length; i += this.config.batchSize) {
