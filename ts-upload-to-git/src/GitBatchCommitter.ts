@@ -238,6 +238,7 @@ export class GitBatchCommitter {
         if (!addResult.success) {
           console.log(chalk.yellow(`Warning: Failed to add file ${file}`));
         }
+        // console.log(chalk.green(`✓ Added file ${file}`));
       }
 
       // 提交更改
@@ -341,6 +342,16 @@ export class GitBatchCommitter {
       if (result.success) {
         totalCommitted += result.filesCommitted;
         successfulBatches++;
+
+        // 每次成功提交后立即推送到远程仓库
+        console.log(chalk.cyan(`Pushing batch ${i + 1} to remote repository...`));
+        const pushResult = await this.pushToRemote();
+        
+        if (!pushResult) {
+          console.log(chalk.red(`✗ Failed to push batch ${i + 1} to remote repository`));
+        } else {
+          console.log(chalk.green(`✓ Batch ${i + 1} successfully pushed to remote repository`));
+        }
       }
 
       // 批次间延迟
@@ -348,11 +359,6 @@ export class GitBatchCommitter {
         console.log(chalk.gray('Waiting for next batch...'));
         await this.delay(1000);
       }
-    }
-
-    // 5. 推送到远程仓库
-    if (successfulBatches > 0) {
-      await this.pushToRemote();
     }
 
     console.log(chalk.cyan('\n=== Commit Summary ==='));
