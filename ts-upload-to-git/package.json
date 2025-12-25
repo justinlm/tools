@@ -8,18 +8,20 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "setup": "npm install && cp .env.example .env",
+    "build-bundle": "esbuild src/index.ts --bundle --platform=node --outfile=dist/upload-files-2-git.js",
     "test": "echo \"运行前请先配置.env文件\" && exit 0"
   },
   "dependencies": {
     "axios": "^1.6.0",
-    "fs-extra": "^11.1.1",
     "chalk": "^4.1.2",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "esbuild": "^0.27.2",
+    "fs-extra": "^11.1.1"
   },
   "devDependencies": {
-    "@types/node": "^20.5.0",
     "@types/fs-extra": "^11.0.1",
-    "typescript": "^5.1.6",
-    "ts-node": "^10.9.1"
+    "@types/node": "^20.5.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
   }
 }

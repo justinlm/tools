@@ -25,10 +25,88 @@ export interface CommitResult {
 export class GitBatchCommitter {
   private config: GitConfig;
   private gitDir: string;
+  private ignorePatterns: string[] = [];
 
   constructor(config: GitConfig) {
     this.config = config;
     this.gitDir = path.resolve(config.sourceDir);
+  }
+
+  /**
+   * 解析.gitignore文件
+   */
+  private async parseGitignore(): Promise<void> {
+    const gitignorePath = path.join(this.gitDir, '.gitignore');
+    
+    if (!await fs.pathExists(gitignorePath)) {
+      console.log(chalk.yellow('No .gitignore file found, skipping ignore patterns'));
+      return;
+    }
+
+    try {
+      const content = await fs.readFile(gitignorePath, 'utf-8');
+      const patterns = content.split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith('#')) // 过滤空行和注释
+        .filter(pattern => pattern.length > 0);
+
+      this.ignorePatterns = patterns;
+      console.log(chalk.cyan(`Loaded ${patterns.length} ignore patterns from .gitignore`));
+      
+      if (patterns.length > 0) {
+        console.log(chalk.gray('Ignore patterns:'));
+        patterns.forEach(pattern => console.log(chalk.gray(`  - ${pattern}`)));
+      }
+    } catch (error) {
+      console.log(chalk.yellow('Failed to parse .gitignore file, skipping ignore patterns'));
+    }
+  }
+
+  /**
+   * 检查文件是否应该被忽略
+   */
+  private shouldIgnoreFile(filePath: string): boolean {
+    if (this.ignorePatterns.length === 0) {
+      return false;
+    }
+
+    const relativePath = path.relative(this.gitDir, filePath).replace(/\\/g, '/');
+    
+    for (const pattern of this.ignorePatterns) {
+      if (this.matchesPattern(relativePath, pattern)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * 检查文件路径是否匹配忽略模式
+   */
+  private matchesPattern(filePath: string, pattern: string): boolean {
+    // 处理目录模式（以/结尾）
+    if (pattern.endsWith('/')) {
+      const dirPattern = pattern.slice(0, -1);
+      return filePath.startsWith(dirPattern) || 
+             filePath.includes('/' + dirPattern + '/') ||
+             filePath.endsWith('/' + dirPattern);
+    }
+    
+    // 处理通配符模式
+    if (pattern.includes('*')) {
+      const regexPattern = pattern
+        .replace(/\./g, '\\.')
+        .replace(/\*/g, '.*')
+        .replace(/\?/g, '.');
+      const regex = new RegExp(`^${regexPattern}$`);
+      return regex.test(filePath);
+    }
+    
+    // 精确匹配
+    return filePath === pattern || 
+           filePath.endsWith('/' + pattern) ||
+           filePath.includes('/' + pattern + '/');
   }
 
   /**
@@ -108,12 +186,15 @@ export class GitBatchCommitter {
   }
 
   /**
-   * 获取所有要提交的文件
+   * 获取所有要提交的文件（过滤.gitignore中的内容）
    */
   async getAllFiles(): Promise<string[]> {
     const files: string[] = [];
 
-    async function walkDirectory(dir: string) {
+    // 先解析.gitignore文件
+    await this.parseGitignore();
+
+    async function walkDirectory(dir: string, committer: GitBatchCommitter) {
       const items = await fs.readdir(dir);
       
       for (const item of items) {
@@ -121,12 +202,15 @@ export class GitBatchCommitter {
         const stat = await fs.stat(fullPath);
         
         if (stat.isDirectory()) {
-          // 跳过.git目录
-          if (item !== '.git') {
-            await walkDirectory(fullPath);
+          // 跳过.git目录和.gitignore中指定的目录
+          if (item !== '.git' && !committer.shouldIgnoreFile(fullPath)) {
+            await walkDirectory(fullPath, committer);
           }
         } else {
-          files.push(fullPath);
+          // 跳过.gitignore中指定的文件
+          if (!committer.shouldIgnoreFile(fullPath)) {
+            files.push(fullPath);
+          }
         }
       }
     }
@@ -135,7 +219,9 @@ export class GitBatchCommitter {
       throw new Error(`Source directory does not exist: ${this.config.sourceDir}`);
     }
 
-    await walkDirectory(this.config.sourceDir);
+    await walkDirectory(this.config.sourceDir, this);
+    
+    console.log(chalk.cyan(`Found ${files.length} files after applying .gitignore filters`));
     return files;
   }
 
@@ -227,16 +313,16 @@ export class GitBatchCommitter {
       throw new Error('Failed to setup remote repository');
     }
 
-    // 3. 获取所有文件
-    console.log(chalk.cyan('Scanning files...'));
+    // 3. 获取所有文件（自动应用.gitignore过滤）
+    console.log(chalk.cyan('Scanning files (applying .gitignore filters)...'));
     const allFiles = await this.getAllFiles();
     
     if (allFiles.length === 0) {
-      console.log(chalk.yellow('No files found to commit'));
+      console.log(chalk.yellow('No files found to commit after .gitignore filtering'));
       return;
     }
 
-    console.log(chalk.cyan(`Found ${allFiles.length} files`));
+    console.log(chalk.cyan(`Found ${allFiles.length} files after .gitignore filtering`));
 
     // 4. 分批提交
     const batches: string[][] = [];
@@ -272,7 +358,7 @@ export class GitBatchCommitter {
     console.log(chalk.cyan('\n=== Commit Summary ==='));
     console.log(chalk.green(`Successful batches: ${successfulBatches}/${batches.length}`));
     console.log(chalk.green(`Total files committed: ${totalCommitted}`));
-    console.log(chalk.cyan(`Total files found: ${allFiles.length}`));
+    console.log(chalk.cyan(`Total files found (after .gitignore): ${allFiles.length}`));
   }
 
   /**
