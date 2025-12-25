@@ -217,31 +217,98 @@ export class GitBatchCommitter {
    */
   async getAllFiles(): Promise<string[]> {
     const files: string[] = [];
+    let totalScanned = 0;
+    let totalFiles = 0;
+    let totalDirs = 0;
+    let skippedFiles = 0;
+    let trackedFiles = 0;
 
     // 先解析.gitignore文件
     await this.parseGitignore();
+
+    // 先统计总文件数（用于进度显示）
+    console.log(chalk.cyan('Counting total files and directories...'));
+    async function countTotalItems(dir: string, committer: GitBatchCommitter): Promise<number> {
+      let count = 0;
+      try {
+        const items = await fs.readdir(dir);
+        for (const item of items) {
+          const fullPath = path.join(dir, item);
+          const stat = await fs.stat(fullPath);
+          count++;
+          
+          if (stat.isDirectory() && item !== '.git' && !committer.shouldIgnoreFile(fullPath)) {
+            count += await countTotalItems(fullPath, committer);
+          }
+        }
+      } catch (error) {
+        console.log(chalk.yellow(`Warning: Failed to count items in ${dir}`));
+      }
+      return count;
+    }
+
+    const totalItems = await countTotalItems(this.config.sourceDir, this);
+    console.log(chalk.cyan(`Total items to scan: ${totalItems}`));
+
+    // 显示进度条的函数
+    function showProgress(current: number, total: number, action: string = 'Scanning') {
+      const percentage = Math.round((current / total) * 100);
+      const barLength = 30;
+      const filledLength = Math.round((barLength * current) / total);
+      const bar = '█'.repeat(filledLength) + '░'.repeat(barLength - filledLength);
+      
+      process.stdout.write(`\r${action}: [${bar}] ${percentage}% (${current}/${total})`);
+      
+      if (current === total) {
+        process.stdout.write('\n');
+      }
+    }
 
     async function walkDirectory(dir: string, committer: GitBatchCommitter) {
       const items = await fs.readdir(dir);
       
       for (const item of items) {
+        totalScanned++;
         const fullPath = path.join(dir, item);
         const stat = await fs.stat(fullPath);
         
+        // 更新进度显示（每扫描10个文件更新一次进度条）
+        if (totalScanned % 10 === 0 || totalScanned === totalItems) {
+          showProgress(totalScanned, totalItems, 'Scanning files');
+        }
+        
         if (stat.isDirectory()) {
+          totalDirs++;
           // 跳过.git目录和.gitignore中指定的目录
           if (item !== '.git' && !committer.shouldIgnoreFile(fullPath)) {
             await walkDirectory(fullPath, committer);
+          } else {
+            console.log(chalk.gray(`\nSkipping directory: ${fullPath}`));
           }
         } else {
+          totalFiles++;
           // 跳过.gitignore中指定的文件和已经被Git跟踪的文件
           if (!committer.shouldIgnoreFile(fullPath)) {
             // 检查文件是否已经被Git跟踪
             const isTracked = await committer.isFileTrackedByGit(fullPath);
             if (!isTracked) {
               files.push(fullPath);
+              // 显示新发现的文件（每发现10个文件显示一次）
+              if (files.length % 10 === 0) {
+                console.log(chalk.green(`\n✓ Found ${files.length} new files so far...`));
+              }
             } else {
-              console.log(chalk.gray(`Skipping already tracked file: ${fullPath}`));
+              trackedFiles++;
+              // 显示跳过的跟踪文件（每跳过50个文件显示一次）
+              if (trackedFiles % 50 === 0) {
+                console.log(chalk.yellow(`\n⚠ Skipped ${trackedFiles} tracked files so far...`));
+              }
+            }
+          } else {
+            skippedFiles++;
+            // 显示跳过的忽略文件（每跳过50个文件显示一次）
+            if (skippedFiles % 50 === 0) {
+              console.log(chalk.blue(`\nℹ Skipped ${skippedFiles} ignored files so far...`));
             }
           }
         }
@@ -252,17 +319,34 @@ export class GitBatchCommitter {
       throw new Error(`Source directory does not exist: ${this.config.sourceDir}`);
     }
 
+    console.log(chalk.cyan('\nStarting file scan with real-time progress...'));
+    console.log(chalk.gray('Press Ctrl+C to stop the scan at any time\n'));
+
     await walkDirectory(this.config.sourceDir, this);
     
-    console.log(chalk.cyan(`Found ${files.length} files after applying .gitignore and Git tracking filters`));
+    // 显示最终统计信息
+    console.log(chalk.cyan('\n=== Scan Complete ==='));
+    console.log(chalk.green(`✓ Total scanned: ${totalItems} items`));
+    console.log(chalk.green(`✓ Directories: ${totalDirs}`));
+    console.log(chalk.green(`✓ Files: ${totalFiles}`));
+    console.log(chalk.yellow(`⚠ Skipped (ignored): ${skippedFiles} files`));
+    console.log(chalk.yellow(`⚠ Skipped (tracked): ${trackedFiles} files`));
+    console.log(chalk.cyan(`✓ New files to commit: ${files.length}`));
     
     // 显示过滤统计信息
     if (files.length > 0) {
-      console.log(chalk.gray('Files to be committed:'));
-      files.forEach(file => {
+      console.log(chalk.gray('\nFiles to be committed:'));
+      // 只显示前20个文件，避免输出过多
+      const displayFiles = files.slice(0, 20);
+      displayFiles.forEach(file => {
         const relativePath = path.relative(this.config.sourceDir, file);
         console.log(chalk.gray(`  - ${relativePath}`));
       });
+      if (files.length > 20) {
+        console.log(chalk.gray(`  ... and ${files.length - 20} more files`));
+      }
+    } else {
+      console.log(chalk.yellow('No new files found to commit'));
     }
     
     return files;
