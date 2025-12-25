@@ -186,7 +186,34 @@ export class GitBatchCommitter {
   }
 
   /**
-   * 获取所有要提交的文件（过滤.gitignore中的内容）
+   * 检查文件是否已经被Git跟踪（已提交或已暂存）
+   */
+  private async isFileTrackedByGit(filePath: string): Promise<boolean> {
+    try {
+      // 获取相对于Git仓库根目录的相对路径
+      const relativePath = path.relative(this.gitDir, filePath).replace(/\\/g, '/');
+      
+      // 使用git status命令检查文件状态
+      const statusResult = await this.runGitCommand(`git status --porcelain "${relativePath}"`);
+      
+      if (!statusResult.success) {
+        // 如果命令执行失败，假设文件未被跟踪
+        return false;
+      }
+      
+      // git status --porcelain 输出格式说明：
+      // - 空输出：文件未被修改（已提交）
+      // - 有输出：文件有变更（已暂存或未暂存）
+      // 我们只关心文件是否在Git索引中，所以检查是否有输出
+      return statusResult.output.trim().length > 0;
+    } catch (error) {
+      console.log(chalk.yellow(`Warning: Failed to check Git status for file ${filePath}`));
+      return false;
+    }
+  }
+
+  /**
+   * 获取所有要提交的文件（过滤.gitignore中的内容和已提交到Git的文件）
    */
   async getAllFiles(): Promise<string[]> {
     const files: string[] = [];
@@ -207,9 +234,15 @@ export class GitBatchCommitter {
             await walkDirectory(fullPath, committer);
           }
         } else {
-          // 跳过.gitignore中指定的文件
+          // 跳过.gitignore中指定的文件和已经被Git跟踪的文件
           if (!committer.shouldIgnoreFile(fullPath)) {
-            files.push(fullPath);
+            // 检查文件是否已经被Git跟踪
+            const isTracked = await committer.isFileTrackedByGit(fullPath);
+            if (!isTracked) {
+              files.push(fullPath);
+            } else {
+              console.log(chalk.gray(`Skipping already tracked file: ${fullPath}`));
+            }
           }
         }
       }
@@ -221,7 +254,17 @@ export class GitBatchCommitter {
 
     await walkDirectory(this.config.sourceDir, this);
     
-    console.log(chalk.cyan(`Found ${files.length} files after applying .gitignore filters`));
+    console.log(chalk.cyan(`Found ${files.length} files after applying .gitignore and Git tracking filters`));
+    
+    // 显示过滤统计信息
+    if (files.length > 0) {
+      console.log(chalk.gray('Files to be committed:'));
+      files.forEach(file => {
+        const relativePath = path.relative(this.config.sourceDir, file);
+        console.log(chalk.gray(`  - ${relativePath}`));
+      });
+    }
+    
     return files;
   }
 
