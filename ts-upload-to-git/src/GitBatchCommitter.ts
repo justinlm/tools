@@ -66,6 +66,7 @@ export class GitBatchCommitter {
    * 检查文件是否应该被忽略
    */
   private shouldIgnoreFile(filePath: string): boolean {
+    return false;
     if (this.ignorePatterns.length === 0) {
       return false;
     }
@@ -234,9 +235,9 @@ export class GitBatchCommitter {
     let trackedFiles = 0;
 
     // 先解析.gitignore文件
-    await this.parseGitignore();
+    // await this.parseGitignore();
 
-    console.log(chalk.cyan(`Ignore patterns: ${this.ignorePatterns.join(', ')}`));
+    // console.log(chalk.cyan(`Ignore patterns: ${this.ignorePatterns.join(', ')}`));
 
     // 先统计总文件数（用于进度显示）
     console.log(chalk.cyan('Counting total files and directories...'));
@@ -373,11 +374,19 @@ export class GitBatchCommitter {
     try {
       // 添加文件到暂存区
       for (const file of files) {
-        const addResult = await this.runGitCommand(`git add "${file}"`);
+        // 获取相对于Git仓库根目录的相对路径
+        const relativePath = path.relative(this.gitDir, file);
+        // 修复Windows路径问题：将反斜杠转换为正斜杠
+        const gitSafePath = relativePath.replace(/\\/g, '/');
+        
+        const addResult = await this.runGitCommand(`git add "${gitSafePath}"`);
         if (!addResult.success) {
           console.log(chalk.yellow(`Warning: Failed to add file ${file}`));
+          console.log(chalk.gray(`Relative path: ${relativePath}`));
+          console.log(chalk.gray(`Error details: ${addResult.error}`));
+        } else {
+          console.log(chalk.green(`✓ Added file ${relativePath}`));
         }
-        // console.log(chalk.green(`✓ Added file ${file}`));
       }
 
       // 提交更改
