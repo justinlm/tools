@@ -50,6 +50,10 @@ function findAllFiles(dir: string): FileInfo[] {
         const items = fs.readdirSync(currentDir);
         
         for (const item of items) {
+            // 过滤掉 .svn 和 .git 文件夹
+            if (item === '.svn' || item === '.git') {
+                continue;
+            }
             const fullPath = path.join(currentDir, item);
             const stat = fs.statSync(fullPath);
             
