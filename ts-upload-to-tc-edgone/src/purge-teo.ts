@@ -49,6 +49,8 @@ export class PurgeTEO {
                     this.currentEnvironment.cdnUrl + this.currentEnvironment.prefix + "/"
                 ]
             };
+            console.log("TEO 缓存刷新请求参数:", params);
+            
             req.from_json_string(JSON.stringify(params))
 
             // 返回的resp是一个CreatePurgeTaskResponse的实例，与请求对象对应
